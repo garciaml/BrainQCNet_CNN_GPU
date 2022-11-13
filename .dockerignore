@@ -1,0 +1,16 @@
+*/temp*
+*/*/temp*
+temp?
+*.md
+!README.md
+.circleci
+.dockerignore.swp
+.git
+.gitattributes
+.gitignore
+boutiques
+git-set-file-times
+Singularity
+__pycache__/
+cp_from_evaluate_to_here.sh
+README.md
