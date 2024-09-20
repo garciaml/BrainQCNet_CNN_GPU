@@ -25,9 +25,9 @@ docker pull garciaml/brainqcnet-cnn:latest
 
 ## Step 4: Get our best model
 In order to be able to run a CNN model, please download the model you want: 
-- the DenseNet161 trained on 15 epochs [here](https://drive.google.com/file/d/19yj54dFg-Wd24ebIKEMflXf-pDXKHn1A/view?usp=sharing);
-- the ResNet152 trained on 15 epochs [here](https://drive.google.com/file/d/1ZFIAMUa1Ie__MAo8ahb89nolKRKOAdgD/view?usp=sharing);
-- the VGG19 trained on 15 epochs [here](https://drive.google.com/file/d/1d1w2Bcw6DV1N0tPSSEUCpyHVl_yAk2A7/view?usp=sharing).
+- the DenseNet161 trained on 15 epochs [here](https://drive.google.com/file/d/10rK9tG41NKE9I-6J1GtfgEzYxHddTpCK/view?usp=sharing);
+- the ResNet152 trained on 15 epochs [here](https://drive.google.com/file/d/1qfIx7W3YjBJd5tKy5j3FFfK6MvVt6tEz/view?usp=sharing);
+- the VGG19 trained on 15 epochs [here](https://drive.google.com/file/d/1IfHiLsy_1BhXM7Q78x9UJVzarOIny8WG/view?usp=sharing).
 
 You will need to move the model **15push0.xxxx.pth** to a choosen folder. We will need to refer to the path of this chosen folder when launching the app. 
 
