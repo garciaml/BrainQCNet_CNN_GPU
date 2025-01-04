@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
-from torchsummary import summary
+#from torchsummary import summary
 
 model_urls = {
     'vgg11': 'https://download.pytorch.org/models/vgg11-bbd30ac9.pth',
@@ -294,7 +294,7 @@ if __name__ == '__main__':
     # print(vgg19_f)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     vgg19_f.to(device)
-    print(summary(vgg19_f, (3,224,224)))
+    #print(summary(vgg19_f, (3,224,224)))
 
     # vgg19_bn_f = vgg19_bn_features(pretrained=True)
     # print(vgg19_bn_f)
