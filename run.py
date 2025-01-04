@@ -6,8 +6,7 @@ import subprocess
 from glob import glob
 import pandas as pd
 
-__version__ = open(os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                'version')).read()
+__version__ = "1.0.0"
 
 def run(command, env={}):
     merged_env = os.environ
@@ -51,8 +50,8 @@ parser.add_argument('--masks', default='0', help='0 : return log file; 1 : predi
 parser.add_argument('--pred_method', default='percentage', help='percentage: percentage of slices predicted 1; mean: mean of predictions on each slice; median: median of predictions on each slice')
 parser.add_argument('--n_areas', default='3', help='Integer; To sample each axis into n areas, and computes the probability and prediction of class in each area; Must be lower than the number of slices of each axis. Recommendation: give n_areas lower than 100.')
 parser.add_argument('--no_bids', default='0', help='0: BIDS dataset; 1: dataset not BIDS-structured, we suppose all the files are in bids_dir directly, with subid as filename prefix.')
-parser.add_argument('--modeldir', default='./saved_models/resnet152/19112020/', help='The directory where the weighs and the prototypes of the best model ResNet152 is stored.')
-parser.add_argument('--model', default='10nopush0.9700.pth', help='The directory where the weighs and the prototypes of the best model ResNet152 is stored.')
+parser.add_argument('--modeldir', default='./saved_models', help='The directory where the CNN model is stored.')
+parser.add_argument('--model', default='10nopush0.9700.pth', help='The file containing the model to use.')
 
 args = parser.parse_args()
 
@@ -103,30 +102,57 @@ if args.analysis_level == "participant":
     else:
         # find all T1s and process them
         for subject_label in subjects_to_analyze:
-            for T1_file in glob(os.path.join(args.bids_dir,
-                                            "sub-%s"%subject_label,
-                                            "anat",
-                                            "*_T1w.nii*")) + glob(os.path.join(args.bids_dir,
-                                            "sub-%s"%subject_label,
-                                            "ses-*","anat",
-                                            "*_T1w.nii*")):
-                #print(T1_file)
-                filename = T1_file.split("/")[-1]
-                cmd = "./preprocess_and_predict.sh %s %s %s %s %s %s %s %s %s %s %s"%(T1_file, filename, subject_label, 
-                                                                                    args.output_dir, args.pythonpath, 
-                                                                                    args.gpuid, args.masks, args.pred_method, 
-                                                                                    args.n_areas, args.modeldir, args.model)
-                run(cmd)
+            # Find all sessions for the participant
+            session_dirs = glob(os.path.join(args.bids_dir, f"sub-{subject_label}", "ses-*"))
+            if not session_dirs:  # Handle single-session datasets
+                session_dirs = [os.path.join(args.bids_dir, f"sub-{subject_label}")]
+
+            for session_dir in session_dirs:
+                session = os.path.basename(session_dir).split("-")[-1] if "ses-" in session_dir else "single_session"
+                anat_dir = os.path.join(session_dir, "anat")
+                if not os.path.isdir(anat_dir):
+                    continue
+
+                # Process T1w images in the anat directory
+                # multi-run case
+                #T1_files = glob(os.path.join(anat_dir, "*_run-*_T1w.nii*"))
+                #if not T1_files:
+                T1_files = glob(os.path.join(anat_dir, "*_T1w.nii*"))
+                for T1_file in T1_files:
+                    filename = os.path.basename(T1_file)
+                    run_dir = [el for el in os.path.basename(T1_file).split('_') if 'run-' in el]
+                    if not run_dir:
+                        run_dir = 'single_run'
+                    else:
+                        run_dir = run_dir[0]
+                    output_subdir = os.path.join(args.output_dir, f"sub-{subject_label}", f"ses-{session}", run_dir)
+                    os.makedirs(output_subdir, exist_ok=True)
+                    cmd = f"./preprocess_and_predict.sh {T1_file} {filename} sub-{subject_label} {output_subdir} {args.pythonpath} {args.gpuid} {args.masks} {args.pred_method} {args.n_areas} {args.modeldir} {args.model}"
+
+                    #cmd = "./preprocess_and_predict.sh %s %s %s %s %s %s %s %s %s %s %s"%(T1_file, filename, subject_label, 
+                    #                                                                args.output_dir, args.pythonpath, 
+                    #                                                                args.gpuid, args.masks, args.pred_method, 
+                    #                                                                args.n_areas, args.modeldir, args.model)
+                    run(cmd)
 
 # running group level
 elif args.analysis_level == "group":
-    df_all = pd.DataFrame({"subid": [], "proba": [], "t": [], "pred": []})
+    df_all = pd.DataFrame({"subid": [], "session": [], "run": [], "proba": [], "t": [], "pred": []})
     for subject_label in subjects_to_analyze:
-        if os.path.isdir(os.path.join(args.output_dir, subject_label)):
-            try:
-                df_all = pd.concat([df_all, pd.read_csv(os.path.join(args.output_dir, subject_label, "tot_df.csv"))], 
-                                 axis=0, ignore_index=True, sort=False)
-            except:
-                print(subject_label, "no files")
+        session_dirs = glob(os.path.join(args.output_dir, f"sub-{subject_label}", "ses-*"))
+        if not session_dirs:  # Handle single-session datasets
+            session_dirs = [os.path.join(args.output_dir, f"sub-{subject_label}", "single_session")]
+        for session_dir in session_dirs:
+            if os.path.isdir(session_dir):
+                run_dirs = glob(os.path.join(session_dir, "run-*"))
+                if not run_dirs:
+                    run_dirs = [os.path.join(session_dir, "single_run")]
+                for run_dir in run_dirs:
+                    results_file = os.path.join(run_dir, "tot_df.csv")
+                    if os.path.exists(results_file):
+                        df = pd.read_csv(results_file)
+                        df['subid'] = f"sub-{subject_label}"
+                        df['session'] = os.path.basename(session_dir)
+                        df['run'] = os.path.basename(run_dir)
+                        df_all = pd.concat([df_all, df], axis=0, ignore_index=True, sort=False)
     df_all.to_csv(os.path.join(args.output_dir, "group_results.csv"), index=False)
-
